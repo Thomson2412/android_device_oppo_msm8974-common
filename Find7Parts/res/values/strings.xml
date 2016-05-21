@@ -29,4 +29,34 @@
     <string name="advanced_settings">Advanced</string>
     <string name="category_oclick">O-Click</string>
     <string name="oclick_title">Configure O-Click</string>
+
+    <!-- haptic feedback  -->
+    <string name="touchscreen_extras">Haptic feedback</string>
+    <string name="haptic_feedback">Haptic feedback</string>
+    <string name="haptic_feedback_summary">Vibrate when a gesture got detected</string>
+    <string-array
+            name="haptic_feedback_array_name">
+        <item>Camera</item>
+        <item>Flashlight</item>
+    </string-array>
+    <string-array
+            name="haptic_feedback_array_value">
+        <item>touchscreen_gesture_camera_feedback</item>
+        <item>touchscreen_gesture_torch_feedback</item>
+    </string-array>
+    <string-array name="empty_array"/>
+
+    <!-- launch action  -->
+    <string name="touchscreen_action_title">Launch action</string>
+
+    <string name="touchscreen_action_title_camera">Camera</string>
+    <string name="touchscreen_action_title_camera_summary">Loading...</string>
+
+    <string name="touchscreen_action_title_flashlight">Flashlight</string>
+    <string name="touchscreen_action_title_flashlight_summary">Loading...</string>
+
+    <string name="touchscreen_action_default">Default action</string>
+    <string name="touchscreen_action_shortcut">Custom shortcut</string>
+    <string name="touchscreen_action_unkownappforpackagename">(Unkown)</string>
+
 </resources>

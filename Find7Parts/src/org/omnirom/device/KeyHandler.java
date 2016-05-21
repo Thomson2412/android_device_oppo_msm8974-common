@@ -45,6 +45,11 @@ import android.view.WindowManagerGlobal;
 import com.android.internal.os.DeviceKeyHandler;
 import com.android.internal.util.ArrayUtils;
 
+import android.os.Vibrator;
+import android.util.SparseIntArray;
+import android.view.KeyEvent;
+import java.net.URISyntaxException;
+
 public class KeyHandler implements DeviceKeyHandler {
 
     private static final String TAG = KeyHandler.class.getSimpleName();
@@ -69,12 +74,23 @@ public class KeyHandler implements DeviceKeyHandler {
         GESTURE_V_SCANCODE,
     };
 
+    private static final String KEY_CAMERA_LAUNCH_INTENT = "touchscreen_gesture_camera_launch_intent";
+    private static final String KEY_TORCH_LAUNCH_INTENT = "touchscreen_gesture_torch_launch_intent";
+
+    private static final String KEY_CAMERA_FEEDBACK = "touchscreen_gesture_camera_feedback";
+    private static final String KEY_TORCH_FEEDBACK  = "touchscreen_gesture_torch_feedback";
+
+
+    private static final String ACTION_DISMISS_KEYGUARD =
+            "com.android.keyguard.action.DISMISS_KEYGUARD_SECURELY";
+
     private final Context mContext;
     private final PowerManager mPowerManager;
     private EventHandler mEventHandler;
     private WakeLock mGestureWakeLock;
     private Handler mHandler = new Handler();
     private SettingsObserver mSettingsObserver;
+    private Vibrator mVibrator;
 
     private class SettingsObserver extends ContentObserver {
         SettingsObserver(Handler handler) {
@@ -106,6 +122,11 @@ public class KeyHandler implements DeviceKeyHandler {
                 "GestureWakeLock");
         mSettingsObserver = new SettingsObserver(mHandler);
         mSettingsObserver.observe();
+
+        mVibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+        if (mVibrator == null || !mVibrator.hasVibrator()) {
+            mVibrator = null;
+        }
     }
 
     private class EventHandler extends Handler {
@@ -114,12 +135,20 @@ public class KeyHandler implements DeviceKeyHandler {
             KeyEvent event = (KeyEvent) msg.obj;
             switch(event.getScanCode()) {
             case GESTURE_V_SCANCODE:
-                if (DEBUG) Log.i(TAG, "GESTURE_V_SCANCODE");
-                mGestureWakeLock.acquire(GESTURE_WAKELOCK_DURATION);
-                Intent torchIntent = new Intent("com.android.systemui.TOGGLE_FLASHLIGHT");
-                torchIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
-                UserHandle user = new UserHandle(UserHandle.USER_CURRENT);
-                mContext.sendBroadcastAsUser(torchIntent, user);
+                Log.d(TAG, "Case == GESTURE_V_SCANCODE: " + event.getScanCode());
+                if(!launchIntentFromKey(KEY_TORCH_LAUNCH_INTENT)) {
+                    Log.d(TAG, "Toggel flashlight");
+                    if (DEBUG) Log.i(TAG, "GESTURE_V_SCANCODE");
+                    mGestureWakeLock.acquire(GESTURE_WAKELOCK_DURATION);
+                    Intent torchIntent = new Intent("com.android.systemui.TOGGLE_FLASHLIGHT");
+                    torchIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+                    UserHandle user = new UserHandle(UserHandle.USER_CURRENT);
+                    mContext.sendBroadcastAsUser(torchIntent, user);
+                }
+                else{
+                    Log.d(TAG, "Launch action");
+                }
+                doHapticFeedback(KEY_TORCH_FEEDBACK);
                 break;
             }
         }
@@ -159,10 +188,22 @@ public class KeyHandler implements DeviceKeyHandler {
 
     @Override
     public boolean isCameraLaunchEvent(KeyEvent event) {
+        Log.d(TAG, "isCameraLaunchEvent code: " + event.getScanCode());
         if (event.getAction() != KeyEvent.ACTION_UP) {
             return false;
         }
-        return event.getScanCode() == GESTURE_CIRCLE_SCANCODE;
+        if(event.getScanCode() == GESTURE_CIRCLE_SCANCODE) {
+            Log.d(TAG, "Code == GESTURE_CIRCLE_SCANCODE: " + event.getScanCode());
+            if (launchIntentFromKey(KEY_CAMERA_LAUNCH_INTENT)) {
+                Log.d(TAG, "Luanch action");
+                doHapticFeedback(KEY_CAMERA_FEEDBACK);
+                return false;
+            } else {
+                Log.d(TAG, "Launch camera");
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -172,5 +213,69 @@ public class KeyHandler implements DeviceKeyHandler {
         }
         return event.getScanCode() == KEY_DOUBLE_TAP;
     }
-}
 
+    private void startActivitySafely(Intent intent) {
+        intent.addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        try {
+            UserHandle user = new UserHandle(UserHandle.USER_CURRENT);
+            mContext.startActivityAsUser(intent, null, user);
+        } catch (ActivityNotFoundException e) {
+            // Ignore
+        }
+    }
+
+    private void doHapticFeedback(String key) {
+        Log.d(TAG, "Check haptic feedback for: " + key);
+        boolean enabled = Settings.System.getInt(mContext.getContentResolver(), key, 0) != 0;
+        if(enabled){
+            Log.d(TAG, "Do haptic feedback for (enabled): " + key);
+            doHapticFeedback();
+        }
+    }
+
+    private void doHapticFeedback() {
+        Log.d(TAG, "Do haptic feedback");
+        if (mVibrator == null) {
+            Log.d(TAG, "Vibrator == null");
+            return;
+        }
+        mVibrator.vibrate(200);
+    }
+
+    private boolean launchIntentFromKey(String key){
+        String packageName = Settings.System.getString(mContext.getContentResolver(), key);
+        if(packageName == null){
+            return false;
+        }
+        Intent intent = null;
+        if(packageName.equals("") || packageName.equals("default")){
+            return false;
+        }
+        else if(packageName.startsWith("intent:")){
+            Log.d("KeyHandler", "packageName.equals(shortcut)");
+            try{
+                Log.d("KeyHandler", "Try shortcut");
+                intent = Intent.parseUri(packageName, Intent.URI_INTENT_SCHEME);
+            } catch(URISyntaxException e){
+                Log.d("KeyHandler", "Shortcut failed");
+                e.printStackTrace();
+                return false;
+            }
+        }
+        else{
+            Log.d("KeyHandler", "NOT packageName.equals(shortcut)");
+            intent = mContext.getPackageManager().getLaunchIntentForPackage(packageName);
+        }
+        if(intent != null){
+            mGestureWakeLock.acquire(GESTURE_WAKELOCK_DURATION);
+            mPowerManager.wakeUp(SystemClock.uptimeMillis());
+            mContext.sendBroadcastAsUser(new Intent(ACTION_DISMISS_KEYGUARD), UserHandle.CURRENT);
+            startActivitySafely(intent);
+            return true;
+        }
+        return false;
+    }
+}

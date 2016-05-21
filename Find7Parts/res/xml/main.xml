@@ -18,6 +18,35 @@
 
 	</PreferenceCategory>
 
+	<PreferenceCategory android:title="@string/touchscreen_action_title">
+
+		<ListPreference
+				android:key="touchscreen_gesture_camera_launch_intent"
+				android:title="@string/touchscreen_action_title_camera"
+				android:summary="@string/touchscreen_action_title_camera_summary"
+				android:enabled="false" />
+
+		<ListPreference
+				android:key="touchscreen_gesture_torch_launch_intent"
+				android:title="@string/touchscreen_action_title_flashlight"
+				android:summary="@string/touchscreen_action_title_flashlight_summary"
+				android:enabled="false" />
+
+	</PreferenceCategory>
+
+	<PreferenceCategory
+			android:title="@string/touchscreen_extras">
+
+		<MultiSelectListPreference
+				android:key="touchscreen_gesture_haptic_feedback"
+				android:title="@string/haptic_feedback"
+				android:summary="@string/haptic_feedback_summary"
+				android:entries="@array/haptic_feedback_array_name"
+				android:entryValues="@array/haptic_feedback_array_value"
+				android:defaultValue="@array/empty_array" />
+
+	</PreferenceCategory>
+
 	<PreferenceCategory
         android:title="@string/category_vibrator">
         <org.omnirom.device.VibratorStrengthPreference
