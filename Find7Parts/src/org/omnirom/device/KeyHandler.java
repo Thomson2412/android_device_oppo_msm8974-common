@@ -17,17 +17,10 @@
 */
 package org.omnirom.device;
 
-import android.app.ActivityManagerNative;
-import android.app.KeyguardManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.database.ContentObserver;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.media.IAudioService;
 import android.os.Handler;
 import android.os.Message;
 import android.os.PowerManager;
@@ -36,7 +29,6 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.os.UserHandle;
-import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -54,7 +46,7 @@ public class KeyHandler implements DeviceKeyHandler {
 
     private static final String TAG = KeyHandler.class.getSimpleName();
     private static final boolean DEBUG = false;
-    private static final int GESTURE_REQUEST = 1;
+    protected static final int GESTURE_REQUEST = 1;
     private static final int GESTURE_WAKELOCK_DURATION = 3000;
 
     // Supported scancodes
@@ -71,7 +63,7 @@ public class KeyHandler implements DeviceKeyHandler {
     };
 
     private static final int[] sHandledGestures = new int[]{
-        GESTURE_V_SCANCODE,
+        GESTURE_V_SCANCODE
     };
 
     private static final String KEY_CAMERA_LAUNCH_INTENT = "touchscreen_gesture_camera_launch_intent";
@@ -84,7 +76,7 @@ public class KeyHandler implements DeviceKeyHandler {
     private static final String ACTION_DISMISS_KEYGUARD =
             "com.android.keyguard.action.DISMISS_KEYGUARD_SECURELY";
 
-    private final Context mContext;
+    protected final Context mContext;
     private final PowerManager mPowerManager;
     private EventHandler mEventHandler;
     private WakeLock mGestureWakeLock;
@@ -159,9 +151,9 @@ public class KeyHandler implements DeviceKeyHandler {
         if (event.getAction() != KeyEvent.ACTION_UP) {
             return false;
         }
-        if (DEBUG) Log.i(TAG, "scanCode=" + event.getScanCode());
         boolean isKeySupported = ArrayUtils.contains(sHandledGestures, event.getScanCode());
         if (isKeySupported && !mEventHandler.hasMessages(GESTURE_REQUEST)) {
+            if (DEBUG) Log.i(TAG, "scanCode=" + event.getScanCode());
             Message msg = getMessageForKeyEvent(event);
             mEventHandler.sendMessage(msg);
         }
@@ -171,6 +163,11 @@ public class KeyHandler implements DeviceKeyHandler {
     @Override
     public boolean canHandleKeyEvent(KeyEvent event) {
         return ArrayUtils.contains(sSupportedGestures, event.getScanCode());
+    }
+
+    @Override
+    public boolean isDisabledKeyEvent(KeyEvent event) {
+        return false;
     }
 
     private Message getMessageForKeyEvent(KeyEvent keyEvent) {
@@ -212,6 +209,11 @@ public class KeyHandler implements DeviceKeyHandler {
             return false;
         }
         return event.getScanCode() == KEY_DOUBLE_TAP;
+    }
+
+    @Override
+    public KeyEvent translateKeyEvent(KeyEvent event) {
+        return null;
     }
 
     private void startActivitySafely(Intent intent) {
